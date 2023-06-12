@@ -129,7 +129,7 @@ def train_best_model(
         )
 
         
-        email_server_credentials = EmailServerCredentials.load("email-server-credentials")
+        email_server_credentials = EmailServerCredentials.load("emailer")
         email_send_message(
             email_server_credentials=email_server_credentials,
             subject=f"test email",
