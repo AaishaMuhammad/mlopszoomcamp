@@ -14,16 +14,6 @@ from datetime import date
 from prefect.context import get_run_context
 from prefect_email import EmailServerCredentials, email_send_message
 
-def notify_exc_by_email(exc):
-    context = get_run_context()
-    flow_run_name = context.flow_run.name
-    email_server_credentials = EmailServerCredentials.load("email-server-credentials")
-    email_send_message(
-        email_server_credentials=email_server_credentials,
-        subject=f"Flow run {flow_run_name!r} failed",
-        msg=f"Flow run {flow_run_name!r} failed due to {exc}.",
-        email_to=email_server_credentials.username,
-    )
 
 @task(retries=3, retry_delay_seconds=2)
 def read_data(filename: str) -> pd.DataFrame:
@@ -87,62 +77,65 @@ def train_best_model(
     """train a model with best hyperparams and write everything out"""
 
     with mlflow.start_run():
-        try: 
-            train = xgb.DMatrix(X_train, label=y_train)
-            valid = xgb.DMatrix(X_val, label=y_val)
+        train = xgb.DMatrix(X_train, label=y_train)
+        valid = xgb.DMatrix(X_val, label=y_val)
 
-            best_params = {
-                "learning_rate": 0.09585355369315604,
-                "max_depth": 30,
-                "min_child_weight": 1.060597050922164,
-                "objective": "reg:linear",
-                "reg_alpha": 0.018060244040060163,
-                "reg_lambda": 0.011658731377413597,
-                "seed": 42,
-            }
+        best_params = {
+            "learning_rate": 0.09585355369315604,
+            "max_depth": 30,
+            "min_child_weight": 1.060597050922164,
+            "objective": "reg:linear",
+            "reg_alpha": 0.018060244040060163,
+            "reg_lambda": 0.011658731377413597,
+            "seed": 42,
+        }
 
-            mlflow.log_params(best_params)
+        mlflow.log_params(best_params)
 
-            booster = xgb.train(
-                params=best_params,
-                dtrain=train,
-                num_boost_round=100,
-                evals=[(valid, "validation")],
-                early_stopping_rounds=20,
-            )
+        booster = xgb.train(
+            params=best_params,
+            dtrain=train,
+            num_boost_round=100,
+            evals=[(valid, "validation")],
+            early_stopping_rounds=20,
+        )
 
-            y_pred = booster.predict(valid)
-            rmse = mean_squared_error(y_val, y_pred, squared=False)
-            mlflow.log_metric("rmse", rmse)
+        y_pred = booster.predict(valid)
+        rmse = mean_squared_error(y_val, y_pred, squared=False)
+        mlflow.log_metric("rmse", rmse)
 
-            pathlib.Path("models").mkdir(exist_ok=True)
-            with open("models/preprocessor.b", "wb") as f_out:
-                pickle.dump(dv, f_out)
-            mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
+        pathlib.Path("models").mkdir(exist_ok=True)
+        with open("models/preprocessor.b", "wb") as f_out:
+            pickle.dump(dv, f_out)
+        mlflow.log_artifact("models/preprocessor.b", artifact_path="preprocessor")
 
-            mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
+        mlflow.xgboost.log_model(booster, artifact_path="models_mlflow")
 
-            markdown__rmse_report = f"""# RMSE Report
+        markdown__rmse_report = f"""# RMSE Report
 
-            ## Summary
+        ## Summary
 
-            Duration Prediction
+        Duration Prediction
 
-            ## RMSE XGBoost model
+        ## RMSE XGBoost model
 
-            | Region    | RMSE |
-            |:----------|------:|
-            | {date.today()} | {rmse:.2f} |
-            """
+        | Region    | RMSE |
+        |:----------|------:|
+        | {date.today()} | {rmse:.2f} |
+        """
 
-            create_markdown_artifact(
-                key="duration-model-report", markdown=markdown__rmse_report
-            )
+        create_markdown_artifact(
+            key="duration-model-report", markdown=markdown__rmse_report
+        )
 
         
-        except Exception as exc: 
-            notify_exc_by_email(exc)
-            raise
+        email_server_credentials = EmailServerCredentials.load("email-server-credentials")
+        email_send_message(
+            email_server_credentials=email_server_credentials,
+            subject=f"test email",
+            msg=f"testing email",
+            email_to=email_server_credentials.username,
+        )
 
     return None
 
