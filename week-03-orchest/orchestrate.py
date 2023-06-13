@@ -155,13 +155,13 @@ def main_flow(
     # Train
     train_best_model(X_train, X_val, y_train, y_val, dv)
 
-    email_server_credentials = EmailServerCredentials.load("emailer")
-    email_send_message(
-        email_server_credentials=email_server_credentials,
-        subject=f"test email",
-        msg=f"testing email",
-        email_to=email_server_credentials.username,
-    )
+    # email_server_credentials = EmailServerCredentials.load("emailer")
+    # email_send_message(
+    #     email_server_credentials=email_server_credentials,
+    #     subject=f"test email",
+    #     msg=f"testing email",
+    #     email_to=email_server_credentials.username,
+    # )
 
 
 if __name__ == "__main__":
